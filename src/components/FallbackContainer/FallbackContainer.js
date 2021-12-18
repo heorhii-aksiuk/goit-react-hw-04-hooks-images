@@ -1,9 +1,10 @@
-import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import s from './FallbackContainer.module.css';
 
-export default class FallbackContainer extends Component {
-  render() {
-    const { children } = this.props;
-    return <div className={s.container}>{children}</div>;
-  }
+export default function FallbackContainer({ children }) {
+  return <div className={s.container}>{children}</div>;
 }
+
+FallbackContainer.propTypes = {
+  children: PropTypes.element.isRequired,
+};
