@@ -14,47 +14,45 @@ const Status = {
   RESOLVED: 'resolved',
   REJECTED: 'rejected',
 };
+const { IDLE, PENDING, RESOLVED, REJECTED } = Status;
 
 export default function App() {
+  const startPage = 1;
+  const [status, setStatus] = useState(IDLE);
   const [searchValue, setSearchValue] = useState('');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(startPage);
   const [items, setItems] = useState(null);
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState(Status.IDLE);
   const [showModal, setShowModal] = useState(false);
   const [largeImage, setLargeImage] = useState('');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!searchValue) {
-      return;
-    } else if (searchValue) {
-      setPage(1);
-      setItems(null);
-      setStatus(Status.PENDING);
-      apiService(searchValue, 1)
-        .then(items => {
-          setItems(items);
-          setStatus(Status.RESOLVED);
-        })
-        .catch(error => {
-          setError(error);
-          setStatus(Status.REJECTED);
-        });
-    } else if (page !== 1) {
+    if (!searchValue.trim()) {
+      setStatus(IDLE);
+    } else {
+      setStatus(PENDING);
       apiService(searchValue, page)
-        .then(items => {
-          setItems(...items);
-          setStatus(Status.RESOLVED);
+        .then(newItems => {
+          if (page === startPage) {
+            setItems(newItems);
+          } else {
+            setItems(prevState => {
+              return [...prevState, ...newItems];
+            });
+          }
+          setStatus(RESOLVED);
         })
         .catch(error => {
           setError(error);
-          setStatus(Status.REJECTED);
+          setStatus(REJECTED);
         });
     }
   }, [page, searchValue]);
 
   function handleSubmit(searchValue) {
     setSearchValue(searchValue);
+    setPage(startPage);
+    setItems(null);
   }
 
   function handleLoadMore() {
@@ -85,15 +83,15 @@ export default function App() {
       <Searchbar onSubmitGet={handleSubmit} />
       {items && <ImageGallery items={items} showFull={showLargeImage} />}
 
-      {status === Status.PENDING && (
+      {status === PENDING && (
         <FallbackContainer>
           <Loader type="Oval" color="#00BFFF" height={150} width={150} />
         </FallbackContainer>
       )}
 
-      {status === Status.RESOLVED && <Button loadMore={handleLoadMore} />}
+      {status === RESOLVED && <Button loadMore={handleLoadMore} />}
 
-      {status === Status.REJECTED && <p>{error.message}</p>}
+      {status === REJECTED && <p>{error.message}</p>}
     </div>
   );
 }
