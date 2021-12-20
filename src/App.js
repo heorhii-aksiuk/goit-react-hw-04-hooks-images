@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Loader from 'react-loader-spinner';
 import Searchbar from './components/Searchbar/Searchbar';
 import ImageGallery from './components/ImageGallery/ImageGallery';
@@ -15,106 +15,85 @@ const Status = {
   REJECTED: 'rejected',
 };
 
-class App extends Component {
-  state = {
-    searchValue: '',
-    page: 1,
-    items: null,
-    error: null,
-    status: Status.IDLE,
-    showModal: false,
-    largeImage: '',
-  };
+export default function App() {
+  const [searchValue, setSearchValue] = useState('');
+  const [page, setPage] = useState(1);
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState(Status.IDLE);
+  const [showModal, setShowModal] = useState(false);
+  const [largeImage, setLargeImage] = useState('');
 
-  componentDidUpdate(prevProps, prevState) {
-    const prevRequest = prevState.searchValue;
-    const currentRequest = this.state.searchValue.trim();
-    const prevPage = prevState.page;
-    const currentPage = this.state.page;
-    const firstPage = 1;
-
-    if (currentRequest === '') {
+  useEffect(() => {
+    if (!searchValue) {
       return;
-    } else if (currentRequest !== prevRequest) {
-      this.setState({
-        page: firstPage,
-        items: null,
-        status: Status.PENDING,
-      });
-      apiService(currentRequest, firstPage)
-        .then(items =>
-          this.setState({
-            items,
-            status: Status.RESOLVED,
-          }),
-        )
-        .catch(error =>
-          this.setState({
-            error,
-            status: Status.REJECTED,
-          }),
-        );
-    } else if (currentPage !== firstPage && currentPage !== prevPage) {
-      apiService(currentRequest, currentPage)
-        .then(newItems =>
-          this.setState({
-            items: [...this.state.items, ...newItems],
-            status: Status.RESOLVED,
-          }),
-        )
-        .catch(error =>
-          this.setState({
-            error,
-            status: Status.REJECTED,
-          }),
-        );
+    } else if (searchValue) {
+      setPage(1);
+      setItems(null);
+      setStatus(Status.PENDING);
+      apiService(searchValue, 1)
+        .then(items => {
+          setItems(items);
+          setStatus(Status.RESOLVED);
+        })
+        .catch(error => {
+          setError(error);
+          setStatus(Status.REJECTED);
+        });
+    } else if (page !== 1) {
+      apiService(searchValue, page)
+        .then(items => {
+          setItems(...items);
+          setStatus(Status.RESOLVED);
+        })
+        .catch(error => {
+          setError(error);
+          setStatus(Status.REJECTED);
+        });
     }
+  }, [page, searchValue]);
+
+  function handleSubmit(searchValue) {
+    setSearchValue(searchValue);
   }
 
-  handleSubmit = searchValue => {
-    this.setState({ searchValue });
-  };
-
-  handleLoadMore = () => {
-    this.setState(state => ({
-      page: state.page + 1,
-    }));
-  };
-
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({ showModal: !showModal }));
-  };
-
-  showLargeImage = largeImage => {
-    this.setState({ largeImage });
-    this.toggleModal();
-  };
-
-  render() {
-    const { items, status, showModal, largeImage } = this.state;
-    return (
-      <div className={s.app}>
-        {showModal && (
-          <Modal closeModal={this.toggleModal}>
-            <img src={largeImage} alt="Full size" />
-          </Modal>
-        )}
-
-        <Searchbar onSubmitGet={this.handleSubmit} />
-        {items && <ImageGallery items={items} showFull={this.showLargeImage} />}
-
-        {status === Status.PENDING && (
-          <FallbackContainer>
-            <Loader type="Oval" color="#00BFFF" height={150} width={150} />
-          </FallbackContainer>
-        )}
-
-        {status === Status.RESOLVED && (
-          <Button loadMore={this.handleLoadMore} />
-        )}
-      </div>
-    );
+  function handleLoadMore() {
+    setPage(prevState => {
+      return prevState + 1;
+    });
   }
+
+  function toggleModal() {
+    setShowModal(prevState => {
+      return !prevState;
+    });
+  }
+
+  function showLargeImage(largeImage) {
+    setLargeImage(largeImage);
+    toggleModal();
+  }
+
+  return (
+    <div className={s.app}>
+      {showModal && (
+        <Modal closeModal={toggleModal}>
+          <img src={largeImage} alt="Full size" />
+        </Modal>
+      )}
+
+      <Searchbar onSubmitGet={handleSubmit} />
+      {items && <ImageGallery items={items} showFull={showLargeImage} />}
+
+      {status === Status.PENDING && (
+        <FallbackContainer>
+          <Loader type="Oval" color="#00BFFF" height={150} width={150} />
+        </FallbackContainer>
+      )}
+
+      {status === Status.RESOLVED && <Button loadMore={handleLoadMore} />}
+
+      {status === Status.REJECTED && <p>{error.message}</p>}
+    </div>
+  );
 }
-
-export default App;
